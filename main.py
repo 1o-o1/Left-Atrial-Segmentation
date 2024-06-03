@@ -13,7 +13,8 @@ def prepare_image(file):
     # Convert the image file to an appropriate numpy array
     img = Image.open(file.stream).convert('L')  # Assuming grayscale images
     img = img.resize((256, 256))  # Resize to the expected input size of the model
-    return np.array(img)[np.newaxis, :, :, np.newaxis]  # Add batch dimension
+    img = np.array(img)/255.0
+    return img[np.newaxis, :, :, np.newaxis]  # Add batch dimension
 
 def encode_image(image):
     # Ensure the image array is in the correct format
@@ -58,7 +59,7 @@ def predict(image, model):
     
     print(predictions.max())
     # Threshold to create a binary mask
-    mask = (predictions[0]*255).astype(np.float32)  # Assuming the model outputs single-channel prediction
+    mask = (predictions[0, :, :, 0]).astype(np.float32)/predictions.max()  # Assuming the model outputs single-channel prediction
     return image[0, :, :, 0], mask  # Return the first image and its mask from batch
 
 if __name__ == '__main__':
