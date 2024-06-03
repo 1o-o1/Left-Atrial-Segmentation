@@ -5,7 +5,7 @@ Python 3.10.11
 
 Follow these steps to set up and run the project on your local machine:
 
-### 1. Clone the repository
+1. Clone the repository
 
 Open your terminal and run the following command to clone the repository:
 
@@ -31,7 +31,6 @@ pip install -r requirements.txt
 Provide instructions on how to run your project. For example, if you have a main script to execute, include the command here:
 
 ```sh
-Copy code
 python main.py
 ```
 
