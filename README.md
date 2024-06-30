@@ -34,6 +34,11 @@ Provide instructions on how to run your project. For example, if you have a main
 python main.py
 ```
 
+5. To Pull write (update old local repo)
+``sh
+git pull origin master
+``
+
 Structure of project
 
 /Heart-flask-app
