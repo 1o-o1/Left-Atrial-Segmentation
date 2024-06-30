@@ -4,39 +4,41 @@ import numpy as np
 from PIL import Image
 import io
 import base64
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
 
 def load_model():
-    # Load your TensorFlow model here
-    return tf.keras.models.load_model('modelheart.keras',compile=True)
+    return tf.keras.models.load_model('modelheart2.keras', compile=True)
+
+
+def load_classifer():
+    return tf.keras.models.load_model('modelCNNPred.keras', compile=True)
 
 def prepare_image(file):
-    # Convert the image file to an appropriate numpy array
-    img = Image.open(file.stream).convert('L')  # Assuming grayscale images
-    img = img.resize((256, 256))  # Resize to the expected input size of the model
-    img = np.array(img)/255.0
-    return img[np.newaxis, :, :, np.newaxis]  # Add batch dimension
+    img = Image.open(file.stream).convert('RGB')
+    img = img.resize((256, 256))
+    img_array = np.asarray(img)
+    grayscale_img = np.dot(img_array[..., :3], [0.2989, 0.5870, 0.1140])
+    img_array = np.array(grayscale_img, dtype=np.float32) / 255.0 * 6.8
+    img_array = img_array[:, :, np.newaxis]
+    return img_array[np.newaxis, ...]
 
 def encode_image(image):
-    # Ensure the image array is in the correct format
-    if image.ndim == 3 and image.shape[2] == 1:  # Check if the image has a single channel
-        image = image.squeeze(axis=2)  # Remove the channel dimension if it's single-channel
-    elif image.ndim == 4 and image.shape[3] == 1:  # Check if it's a batch of single-channel images
-        image = image.squeeze(axis=3)  # Remove the channel dimension
-
-    # Convert to uint8 if not already
-    if image.dtype != np.uint8:
-        image = (image * 255).astype(np.uint8)  # Assuming the image data ranges between 0 and 1
-
-    # Convert numpy array to PIL Image
-    pil_img = Image.fromarray(image)
-    buffered = io.BytesIO()
-    pil_img.save(buffered, format="JPEG")
-    encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
-    return f'data:image/jpeg;base64,{encoded_image}'
+    plt.figure(figsize=(6, 6))
+    plt.imshow(image.squeeze(), cmap='gray')
+    plt.axis('off')
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    plt.close()
+    buf.seek(0)
+    image_png = buf.getvalue()
+    encoded = base64.b64encode(image_png).decode('utf-8')
+    return f"data:image/png;base64,{encoded}"
 
 app = Flask(__name__)
 model = load_model()
-
+classifer = load_classifer()
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
@@ -46,21 +48,18 @@ def upload_image():
     file = request.files['image']
     if not file:
         return jsonify({'error': 'No file uploaded.'}), 400
-    #file = img = Image.open("F:\'Heart segmentation'\test\test2.PNG")
-    image = prepare_image(file)
-    original, mask = predict(image, model)
-    # Encode the images to send as JSON
-    encoded_original = encode_image(original)
-    encoded_mask = encode_image(mask)
-    return jsonify({'original': encoded_original, 'mask': encoded_mask})
-
-def predict(image, model):
-    predictions = model.predict(image)
     
-    print(predictions.max())
-    # Threshold to create a binary mask
-    mask = (predictions[0, :, :, 0]).astype(np.float32)/predictions.max()  # Assuming the model outputs single-channel prediction
-    return image[0, :, :, 0], mask  # Return the first image and its mask from batch
+    image = prepare_image(file)
+    predictions = model.predict(image)
+    predictions = predictions / predictions.max()  # Normalize the predictions
+    
+    # Plot the original and predicted mask using Matplotlib for visualization
+    encoded_original = encode_image(image[0, :, :, 0])  # Encode the original image
+    encoded_mask = encode_image(predictions[0, :, :, 0])  # Encode the predicted mask
+    class_pred =classifer.predict(image)
+    prediction_confidence = np.mean(class_pred)
+    
+    return jsonify({'original': encoded_original, 'mask': encoded_mask, 'prediction': str(prediction_confidence)})
 
 if __name__ == '__main__':
     app.run(debug=True)
