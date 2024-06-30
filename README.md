@@ -35,9 +35,10 @@ python main.py
 ```
 
 5. To Pull write (update old local repo)
-``sh
+```sh
+
 git pull origin master
-``
+```
 
 Structure of project
 
